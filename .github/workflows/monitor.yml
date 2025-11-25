@@ -1,0 +1,39 @@
+name: HRMOS Job Monitor
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # 30分ごとに実行
+  workflow_dispatch: # 手動実行ボタン
+
+permissions:
+  contents: write
+
+jobs:
+  check-jobs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python Setup
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+      - name: Run Script
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: python hrmos_monitor.py
+      - name: Save Data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add hrmos_job_db.json || true
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update DB"
+            git push
+          fi
